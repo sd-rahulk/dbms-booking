@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AppUser {
+  userId            String             @id @map("user_id")
+  firstName         String             @map("first_name")
+  lastName          String?            @map("last_name")
+  email             String             @unique
+  phones            UserPhone[]
+  emergencyContacts EmergencyContact[]
+  trips             Trip[]
+  payments          Payment[]
+  account           AuthAccount?
+  events            TripEvent[]
+  createdAt         DateTime           @default(now()) @map("created_at")
+
+  @@map("app_user")
+}
+
+model UserPhone {
+  userId      String  @map("user_id")
+  phoneNumber String  @map("phone_number")
+  user        AppUser @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@id([userId, phoneNumber])
+  @@map("user_phone")
+}
+
+model EmergencyContact {
+  contactId   String  @id @map("contact_id")
+  userId      String  @map("user_id")
+  name        String
+  phoneNumber String  @map("phone_number")
+  user        AppUser @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("emergency_contact")
+}
+
+model Driver {
+  driverId           String        @id @map("driver_id")
+  firstName          String        @map("first_name")
+  lastName           String?       @map("last_name")
+  email              String        @unique
+  availabilityStatus String        @default("OFFLINE") @map("availability_status")
+  verificationStatus String        @default("PENDING") @map("verification_status")
+  isActive           Boolean       @default(true) @map("is_active")
+  phones             DriverPhone[]
+  vehicles           Vehicle[]
+  assignments        Assignment[]
+  payments           Payment[]
+  account            AuthAccount?
+
+  @@map("driver")
+}
+
+model DriverPhone {
+  driverId    String @map("driver_id")
+  phoneNumber String @map("phone_number")
+  driver      Driver @relation(fields: [driverId], references: [driverId], onDelete: Cascade)
+
+  @@id([driverId, phoneNumber])
+  @@map("driver_phone")
+}
+
+model Vehicle {
+  vehicleId          String            @id @map("vehicle_id")
+  driverId           String            @map("driver_id")
+  type               String
+  model              String
+  capacity           Int
+  registrationNumber String            @unique @map("registration_number")
+  isActive           Boolean           @default(true) @map("is_active")
+  driver             Driver            @relation(fields: [driverId], references: [driverId], onDelete: Cascade)
+  documents          VehicleDocument[]
+
+  @@map("vehicle")
+}
+
+model VehicleDocument {
+  documentId   String   @id @map("document_id")
+  vehicleId    String   @map("vehicle_id")
+  issueDate    DateTime @map("issue_date")
+  expiryDate   DateTime @map("expiry_date")
+  documentType String   @default("RC") @map("document_type")
+  documentUrl  String?  @map("document_url")
+  vehicle      Vehicle  @relation(fields: [vehicleId], references: [vehicleId], onDelete: Cascade)
+
+  @@map("vehicle_document")
+}
+
+model FarePolicy {
+  policyId    String @id @map("policy_id")
+  vehicleType String @map("vehicle_type")
+  baseFare    Float  @map("base_fare")
+  perKmRate   Float  @map("per_km_rate")
+  trips       Trip[]
+
+  @@map("fare_policy")
+}
+
+model Trip {
+  tripId             String       @id @map("trip_id")
+  userId             String       @map("user_id")
+  policyId           String       @map("policy_id")
+  pickupLocation     String       @map("pickup_location")
+  dropLocation       String       @map("drop_location")
+  bookingDate        DateTime     @map("booking_date")
+  bookingTime        DateTime     @map("booking_time")
+  status             String       @default("REQUESTED")
+  distanceKm         Float?       @map("distance_km")
+  estimatedFare      Float?       @map("estimated_fare")
+  finalFare          Float?       @map("final_fare")
+  requestedAt        DateTime     @default(now()) @map("requested_at")
+  startedAt          DateTime?    @map("started_at")
+  completedAt        DateTime?    @map("completed_at")
+  cancelledAt        DateTime?    @map("cancelled_at")
+  cancellationReason String?      @map("cancellation_reason")
+  user               AppUser      @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  policy             FarePolicy   @relation(fields: [policyId], references: [policyId], onDelete: Restrict)
+  assignments        Assignment[]
+  payments           Payment[]
+  reviews            Review[]
+  events             TripEvent[]
+
+  @@index([userId, requestedAt])
+  @@index([status, requestedAt])
+  @@map("trip")
+}
+
+model Assignment {
+  tripId     String   @map("trip_id")
+  driverId   String   @map("driver_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  trip       Trip     @relation(fields: [tripId], references: [tripId], onDelete: Cascade)
+  driver     Driver   @relation(fields: [driverId], references: [driverId], onDelete: Restrict)
+
+  @@id([tripId, driverId])
+  @@map("assigned_to")
+}
+
+model Payment {
+  paymentId            String   @id @map("payment_id")
+  userId               String   @map("user_id")
+  driverId             String?  @map("driver_id")
+  tripId               String   @map("trip_id")
+  paymentDate          DateTime @map("payment_date")
+  paymentMethod        String   @map("payment_method")
+  amount               Float
+  status               String   @default("PENDING")
+  transactionReference String?  @unique @map("transaction_reference")
+  createdAt            DateTime @default(now()) @map("created_at")
+  user                 AppUser  @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  driver               Driver?  @relation(fields: [driverId], references: [driverId], onDelete: SetNull)
+  trip                 Trip     @relation(fields: [tripId], references: [tripId], onDelete: Restrict)
+
+  @@unique([tripId, paymentMethod])
+  @@map("payment")
+}
+
+model Review {
+  reviewId String  @id @map("review_id")
+  tripId   String  @unique @map("trip_id")
+  rating   Int
+  comment  String?
+  trip     Trip    @relation(fields: [tripId], references: [tripId], onDelete: Cascade)
+
+  @@map("review")
+}
+
+model AuthAccount {
+  accountId    String   @id @default(cuid()) @map("account_id")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         String
+  userId       String?  @unique @map("user_id")
+  driverId     String?  @unique @map("driver_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         AppUser? @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  driver       Driver?  @relation(fields: [driverId], references: [driverId], onDelete: Cascade)
+
+  @@map("auth_account")
+}
+
+model TripEvent {
+  eventId        String   @id @default(cuid()) @map("event_id")
+  tripId         String   @map("trip_id")
+  actorId        String?  @map("actor_id")
+  eventType      String   @map("event_type")
+  previousStatus String?  @map("previous_status")
+  newStatus      String?  @map("new_status")
+  createdAt      DateTime @default(now()) @map("created_at")
+  trip           Trip     @relation(fields: [tripId], references: [tripId], onDelete: Cascade)
+  actor          AppUser? @relation(fields: [actorId], references: [userId], onDelete: SetNull)
+
+  @@index([tripId, createdAt])
+  @@map("trip_event")
+}

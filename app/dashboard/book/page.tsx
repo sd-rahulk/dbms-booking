@@ -1,0 +1,4 @@
+import dynamic from "next/dynamic";
+import { BookingForm } from "@/components/booking-form";
+const MapPreview = dynamic(() => import("@/components/map-preview").then((m) => m.MapPreview), { ssr: false, loading: () => <div className="h-full min-h-[390px] animate-pulse bg-paper" /> });
+export default function BookPage() { return <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-12 lg:py-12"><header className="border-b border-line pb-8"><p className="eyebrow">New itinerary</p><h1 className="display mt-3 text-5xl tracking-[-.05em]">Where to next<span className="text-amber">?</span></h1><p className="mt-3 text-sm text-ash">Tell us the two places. We’ll take care of the in-between.</p></header><div className="mt-8 grid gap-7 lg:grid-cols-[.84fr_1.16fr]"><div className="border border-line bg-[#fbfaf7] p-6 sm:p-8"><BookingForm /></div><div className="min-h-[390px] overflow-hidden border border-line"><MapPreview /></div></div></div>; }

@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --ivory: #F7F5F0; --charcoal: #171717; --amber: #D99A38; --ash: #858585; --line: #DEDCD5; --paper: #EFEEE8; }
+* { box-sizing: border-box; }
+html { background: var(--ivory); }
+body { margin: 0; background: var(--ivory); color: var(--charcoal); font-family: "Avenir Next", "Segoe UI", sans-serif; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+.display { font-family: "Iowan Old Style", Baskerville, Georgia, serif; }
+.eyebrow { color: var(--ash); font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
+.rule { border-color: var(--line); }
+.grain { position: relative; }
+.grain::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .035; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E"); mix-blend-mode: multiply; }
+.route-line { background-image: linear-gradient(90deg, transparent 0 10%, rgba(217,154,56,.45) 10% 10.5%, transparent 10.5% 30%, rgba(217,154,56,.45) 30% 30.5%, transparent 30.5% 52%, rgba(217,154,56,.45) 52% 52.5%, transparent 52.5% 78%, rgba(217,154,56,.45) 78% 78.5%, transparent 78.5%); }
+.leaflet-container { width: 100%; height: 100%; background: #e9e6dc; font-family: inherit; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
