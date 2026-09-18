@@ -1,6 +1,6 @@
 # AERIDE
 
-**Every journey, beautifully connected.**
+**Every journey, beautifully connected.** 
 
 AERIDE is a SQLite-backed ride-sharing and cab booking management system built for a rigorous university DBMS project. It combines a polished responsive interface with real authentication, database persistence, transactional booking, driver assignment, trip state transitions, payments, receipts, audit events, analytics, and an admin SQL Query Lab.
 
