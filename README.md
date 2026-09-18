@@ -300,3 +300,7 @@ Before sharing publicly, change the seeded passwords, rotate `SESSION_SECRET`, a
 - [`VIVA_QUESTIONS.md`](VIVA_QUESTIONS.md) — presentation guide
 - [`docs/er-diagram.svg`](docs/er-diagram.svg) — Chen notation ER diagram
 - [`docs/eer-diagram.svg`](docs/eer-diagram.svg) — EER diagram
+
+
+
+  
