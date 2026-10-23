@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSession, hashPassword } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getSupabaseAdmin, supabaseErrorMessage } from "@/lib/supabase";
 import { registerSchema } from "@/lib/validators";
 
 export async function POST(request: Request) {
@@ -8,14 +8,20 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Check the form." }, { status: 400 });
   const { userId, firstName, lastName, email, password, phone } = parsed.data;
   try {
-    const account = await db.$transaction(async (tx) => {
-      const user = await tx.appUser.create({ data: { userId, firstName, lastName, email: email.toLowerCase(), phones: { create: { phoneNumber: phone } } } });
-      return tx.authAccount.create({ data: { email: email.toLowerCase(), passwordHash: await hashPassword(password), role: "PASSENGER", userId: user.userId } });
+    const { data: account, error } = await getSupabaseAdmin().rpc("register_passenger", {
+      p_user_id: userId,
+      p_first_name: firstName,
+      p_last_name: lastName || null,
+      p_email: email.toLowerCase(),
+      p_phone: phone,
+      p_password_hash: await hashPassword(password),
     });
-    createSession({ accountId: account.accountId, email: account.email, role: account.role as "PASSENGER" | "DRIVER" | "ADMIN", userId: account.userId ?? undefined });
+    if (error || !account) throw error ?? new Error("Registration failed.");
+    createSession({ accountId: account.account_id, email: account.email, role: "PASSENGER", userId: account.user_id });
     return NextResponse.json({ redirect: "/dashboard" }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error && error.message.includes("Unique") ? "That ID or email is already in use." : "Registration failed. Please try again.";
+    const detail = supabaseErrorMessage(error, "");
+    const message = /duplicate|unique|already exists/i.test(detail) ? "That ID or email is already in use." : "Registration failed. Please try again.";
     return NextResponse.json({ error: message }, { status: 409 });
   }
 }

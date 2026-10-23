@@ -1,6 +1,6 @@
 export const CHENNAI_FALLBACK_KM = 8.4;
 
-// SQLite has no native NUMERIC type. We calculate in paise and persist two-decimal values.
+// Supabase stores NUMERIC currency values; calculating in paise avoids floating-point quote drift before persistence.
 export function calculateFare(baseFare: number | string, perKmRate: number | string, distanceKm: number) {
   const basePaise = Math.round(Number(baseFare) * 100);
   const ratePaise = Math.round(Number(perKmRate) * 100);

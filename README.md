@@ -2,29 +2,54 @@
 
 **Every journey, beautifully connected.**
 
-AERIDE is a SQLite-backed ride-sharing and cab booking management system built for a rigorous university DBMS project. It combines a polished responsive interface with real authentication, database persistence, transactional booking, driver assignment, trip state transitions, payments, receipts, audit events, analytics, and an admin SQL Query Lab.
+AERIDE is a production-style ride-sharing and cab booking management system for a university DBMS project. It uses Next.js App Router, TypeScript, Tailwind CSS, and Supabase PostgreSQL. The application has real authentication, role authorization, database-backed booking, driver assignment, trip state transitions, simulated payments, downloadable receipts, audit events, analytics, and an admin DBMS Explorer.
 
-## What is included
+## Features
 
-- Passenger workspace: book a ride, inspect the route, view trip history, cancel active trips, and pay after completion.
-- Driver workspace: view assigned trips and move them through `ASSIGNED → ACCEPTED → IN_PROGRESS → COMPLETED`.
-- Admin workspace: live metrics, schema explorer, controlled record management, and allow-listed SQL Query Lab.
-- SQLite database through Prisma, with 12 core academic relations plus physical application extensions.
-- Leaflet/OpenStreetMap map view with deterministic Chennai distance calculation for reproducible demos.
-- Bcrypt password hashing, signed HTTP-only cookies, Zod validation, server-side role authorization, idempotent payments, and downloadable receipts.
+- Passenger portal for booking, route estimates, trip history, cancellation, profile, and emergency contacts.
+- Driver portal for availability, assigned request acceptance, trip execution, and completion.
+- Admin portal for live metrics, controlled CRUD, schema inventory, and PostgreSQL query showcase.
+- Supabase PostgreSQL database with the 12 original academic relations and documented physical extensions.
+- PostgreSQL transactions and row-level locking inside Supabase RPC functions for booking, assignment, trip transitions, registration, and idempotent payments.
+- Fare quote persistence using `Base_Fare + Distance_Km × Per_Km_Rate` with paise-safe server arithmetic.
+- Leaflet/OpenStreetMap route interface with deterministic Chennai fallback distance calculation.
+- Bcrypt password hashing, signed HTTP-only cookies, Zod validation, server-side authorization, and no stored card credentials or UPI PINs.
+- Admin-only SQL Lab with allow-listed PostgreSQL queries executed through a Supabase RPC function. Arbitrary browser SQL is intentionally disabled.
+- Responsive editorial interface with loading states, empty states, error messages, accessible labels, and reduced-motion support.
+
+## Architecture
+
+```text
+Browser UI
+  → Next.js App Router pages and server route handlers
+  → lib/supabase.ts using the server-only Supabase service-role client
+  → Supabase PostgreSQL tables, constraints, indexes, triggers, and RPC functions
+```
+
+The browser never receives `SUPABASE_SERVICE_ROLE_KEY`. Current authentication remains the project’s custom `AUTH_ACCOUNT` model with bcrypt and signed HTTP-only cookies. Supabase is the database platform; Supabase Auth is not required by this implementation.
 
 ## Technology
 
-Next.js App Router · TypeScript · Tailwind CSS · Prisma · SQLite · React Hook Form · Zod · Leaflet/OpenStreetMap · Recharts · Lucide · Motion for React.
+Next.js App Router · TypeScript · Tailwind CSS · Supabase PostgreSQL · `@supabase/supabase-js` · React Hook Form · Zod · Leaflet/OpenStreetMap · Recharts · Lucide · Motion for React.
 
 ## Requirements
 
-- Node.js 20 or newer: `node --version`
-- npm 9 or newer: `npm --version`
-- Git, if cloning from a repository
-- SQLite CLI is optional. Prisma creates and manages the database file.
+- Node.js 20 or newer
+- npm 9 or newer
+- A Supabase project
+- Network access for Supabase and OpenStreetMap tiles
 
-No PostgreSQL server, Docker, API key, payment gateway, or external authentication provider is required for the current build.
+No local PostgreSQL server, Prisma installation, SQLite file, payment gateway, or browser database key is required.
+
+## Supabase project setup
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open the project’s **SQL Editor**.
+3. Run [`supabase/schema.sql`](supabase/schema.sql). This creates the 12 academic relations, physical extensions, indexes, audit trigger, transaction functions, and safe SQL Lab function.
+4. Copy the project URL and the server-only **service_role** key from **Project Settings → API**.
+5. Add the values to `.env` as shown below.
+
+The service-role key is intentionally used only inside Next.js server code and the seed script. Never add it to a `NEXT_PUBLIC_` variable, commit it, or paste it into browser code.
 
 ## Clone and install
 
@@ -34,8 +59,6 @@ cd DBMS
 npm install
 ```
 
-On Windows PowerShell, the same commands work in a terminal opened at the project root.
-
 ## Environment variables
 
 Copy the example file:
@@ -44,55 +67,55 @@ Copy the example file:
 Copy-Item .env.example .env
 ```
 
-The default local `.env` should be:
+Set these values:
 
 ```env
-DATABASE_URL="file:./dev.db"
+NEXT_PUBLIC_SUPABASE_URL="https://your-project-ref.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="your-server-only-service-role-key"
 SESSION_SECRET="replace-with-a-long-random-secret"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
-`file:./dev.db` is resolved relative to the Prisma schema, so the local database is created at `prisma/dev.db`. Use a long random value for `SESSION_SECRET`; do not commit `.env`.
-
-Generate a secret with Node.js:
+Generate a session secret with Node.js:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-## First local run
+The current server-side architecture does not need a Supabase anonymous key. If you later add direct browser-to-Supabase features such as Realtime, use a separate RLS-reviewed client and keep the service-role client server-only.
+
+## Seed deterministic demo data
+
+After running the schema in Supabase SQL Editor:
 
 ```bash
-npm install
-npm run db:generate
-npx prisma db push
 npm run db:seed
+```
+
+The seed reads the root `.env`, hashes the demo passwords, and is safe to run repeatedly through upserts. It creates U001–U005 passengers, D001–D005 drivers, V001–V005 vehicles, fare policies, Chennai trips, payments, reviews, and audit snapshots.
+
+## Run locally
+
+```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The seed is deterministic and safe to run repeatedly. It creates the SQLite file, academic IDs, demo accounts, vehicles, policies, Chennai routes, payments, reviews, and audit snapshots.
-
-### Useful commands
+Useful commands:
 
 ```bash
-npm run dev             # development server
-npm run build           # production build
-npm start               # serve the production build
-npm run typecheck       # TypeScript verification
-npm run test:domain     # fare and trip-state checks
-npm run db:generate     # regenerate Prisma Client
-npm run db:push         # sync schema to SQLite
-npm run db:seed         # idempotent demo data
-npm run db:studio       # Prisma Studio
+npm run dev           # development server
+npm run build         # production build
+npm start             # serve production build
+npm run typecheck     # TypeScript verification
+npm run test:domain   # fare and trip-state checks
+npm run db:seed       # idempotent Supabase seed
 ```
 
 ## Demo accounts
 
-All seeded passengers and drivers use `aeride123`. The admin account uses `admin1234`.
-
-| Role | Email | Password | ID |
+| Role | Email | Password | Academic ID |
 | --- | --- | --- | --- |
 | Passenger | `ananya@aeride.local` | `aeride123` | U001 |
 | Passenger | `vikram@aeride.local` | `aeride123` | U002 |
@@ -100,202 +123,141 @@ All seeded passengers and drivers use `aeride123`. The admin account uses `admin
 | Driver | `mohan@aeride.local` | `aeride123` | D003 |
 | Admin | `admin@aeride.local` | `admin1234` | — |
 
+Change these passwords and rotate `SESSION_SECRET` before public use.
+
 ## Demo walkthrough
 
 ### Passenger booking
 
 1. Sign in as `ananya@aeride.local`.
-2. Select **Book a ride**.
-3. Enter pickup and destination, then choose Hatchback, Sedan, or SUV.
-4. Submit the ride request. The server calculates and persists the quoted fare.
-5. Open **Trip history** to see assignment and status.
+2. Open **Book a ride**.
+3. Enter pickup and destination and choose Hatchback, Sedan, or SUV.
+4. Submit the ride request. The server calculates the distance and persists the quoted fare.
+5. Open **Trip history** to see the assigned driver and current status.
 
 ### Driver completion
 
-1. Sign out and sign in as `karthik@aeride.local`.
+1. Sign in as `karthik@aeride.local`.
 2. Open **Trip history**.
-3. For an assigned trip, use **Accept request**, then **Start trip**, then **Mark complete**.
-4. Every transition is validated by the server and recorded in `trip_event`.
+3. Use **Accept request**, **Start trip**, and **Mark complete**.
+4. Each transition is validated by the PostgreSQL `transition_trip` RPC and recorded in `trip_event`.
 
-The seeded `T003` trip is already `IN_PROGRESS` and assigned to D001, so it is useful for demonstrating **Mark complete** immediately.
+The seeded `T003` trip is already assigned and `IN_PROGRESS`, so it is useful for demonstrating completion.
 
 ### Payment and receipt
 
-After the passenger’s trip is `COMPLETED`, the history card shows `CARD`, `UPI`, and `CASH` options. Select a method, click **Pay now**, and download the generated receipt. Payment retries return the existing record for the same trip and method.
+After a trip is `COMPLETED`, the passenger can choose `CARD`, `UPI`, or `CASH`. The `create_payment` RPC is idempotent for a trip and method. A receipt can be downloaded from the history card.
 
-### Admin SQL Query Lab
+### DBMS Explorer and SQL Lab
 
 1. Sign in as `admin@aeride.local`.
-2. Open `/admin/sql-lab` from the sidebar.
-3. Choose a query and click **Run query**.
+2. Open `/admin/explorer` for the schema inventory and query showcase.
+3. Open `/admin/sql-lab` for the dedicated SQL Lab.
+4. Select a required academic query and click **Run query**.
 
-The browser can select only server-side allow-listed queries. It cannot submit arbitrary SQL, which prevents destructive statements and SQL injection from the admin interface. The DBMS Explorer at `/admin/explorer` provides the schema inventory and the same analytics showcase.
+The query key is validated in the Next.js route and again handled by a fixed `run_sql_lab_query` PostgreSQL function. The browser cannot submit arbitrary `DROP`, `DELETE`, or injected SQL.
 
 ## Database model
 
-The 12 academic relations remain conceptually distinct and are represented with safe SQLite identifiers such as `app_user`. Physical extensions are `auth_account`, operational trip columns, driver/vehicle verification fields, payment status/reference fields, and `trip_event`.
+The original academic relations remain distinct using safe physical identifiers:
 
-SQLite does not have PostgreSQL’s native `NUMERIC`, enum, stored-procedure, or row-lock features. The implementation uses validated string state domains, REAL storage with paise-safe server-side fare arithmetic, SQLite serialized write transactions, and a server function for guarded trip completion. The academic explanation of normalization and BCNF remains in [`PROJECT_REPORT.md`](PROJECT_REPORT.md).
+`app_user`, `user_phone`, `emergency_contact`, `driver`, `driver_phone`, `vehicle`, `vehicle_document`, `fare_policy`, `trip`, `assigned_to`, `payment`, and `review`.
+
+Physical extensions are `auth_account`, operational trip fields, driver and vehicle verification fields, payment status and reference fields, and `trip_event`. PostgreSQL uses `NUMERIC(12,2)` for currency, `DATE`/`TIME` for booking schedule, and `TIMESTAMPTZ` for operational logs.
+
+The critical multi-step operations are PostgreSQL functions in [`supabase/schema.sql`](supabase/schema.sql):
+
+- `register_passenger` — atomic user, phone, and account registration.
+- `create_trip_with_assignment` — atomic trip creation, fare snapshot, driver selection, assignment, and event logging with `FOR UPDATE SKIP LOCKED`.
+- `transition_trip` — row-locked state-machine enforcement and driver availability updates.
+- `create_payment` — completed-trip validation and idempotent payment creation.
+- `run_sql_lab_query` — fixed analytics query library for the admin UI.
 
 ## SQL deliverables
 
-The ordered files in `sql/` are SQLite-compatible examples:
+The ordered files in `sql/` demonstrate DDL, extensions, constraints, DML, joins, subqueries, aggregations, views, triggers, procedures, required analytics, and indexes. They are PostgreSQL-oriented for the Supabase target. The authoritative executable application schema and transaction functions are in `supabase/schema.sql`.
 
-1. `01_schema.sql` — core DDL
-2. `02_extensions.sql` — application tables and columns
-3. `03_constraints.sql` — additional checks and unique indexes
-4. `04_seed.sql` — SQL seed examples
+The 12 academic SQL topics are:
+
+1. `01_schema.sql` — core relations
+2. `02_extensions.sql` — application extensions
+3. `03_constraints.sql` — domains and checks
+4. `04_seed.sql` — starter row examples
 5. `05_dml_examples.sql` — transaction-wrapped DML
-6. `06_queries.sql` — required queries
-7. `07_joins.sql` — joins
-8. `08_subqueries.sql` — subqueries
-9. `09_aggregations.sql` — aggregations
-10. `10_views.sql` — views
-11. `11_triggers_procedures.sql` — audit trigger and SQLite limitation note
-12. `12_indexes.sql` — indexes
+6. `06_queries.sql` — required query showcase
+7. `07_joins.sql` — inner and outer joins
+8. `08_subqueries.sql` — scalar and correlated subqueries
+9. `09_aggregations.sql` — grouped analytics
+10. `10_views.sql` — read-only views
+11. `11_triggers_procedures.sql` — audit trigger and PostgreSQL functions
+12. `12_indexes.sql` — operational access paths
 
-See [`DATABASE_SETUP.md`](DATABASE_SETUP.md) for SQL CLI commands.
+## Deployment
 
-## Production deployment with SQLite
+Supabase hosts the database, so the Next.js application can run on Vercel, Render, Fly.io, Railway, or any Node-compatible host. The app is stateless apart from Supabase and does not need a persistent local disk.
 
-SQLite is a file database. The host must provide a persistent disk and the deployment must run as one application instance. Do not deploy this SQLite build to a standard serverless filesystem: Vercel’s own guidance explains that serverless storage is ephemeral and separate function instances cannot share one SQLite file ([Vercel SQLite guidance](https://vercel.com/kb/guide/is-sqlite-supported-in-vercel)).
+### Vercel
 
-### Recommended: Fly.io with a persistent volume
+1. Push the repository to GitHub.
+2. Import the repository into Vercel.
+3. Add `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_SECRET`, and `NEXT_PUBLIC_APP_URL` under project environment variables.
+4. Deploy with the default settings.
 
-Fly.io is a good fit for this SQLite-only version because its volumes are persistent storage for Fly Machines and are explicitly applicable to SQLite ([Fly volumes documentation](https://fly.io/docs/js/the-basics/volumes/)). Volumes are machine-local, so keep one machine for this academic demo and back up the file regularly.
+Run `npm run db:seed` from a secure local terminal after the schema has been applied. Do not put the service-role key in client-side environment variables.
 
-1. Install `flyctl`, create an account, and log in:
+### Render
 
-```bash
-fly auth login
-```
+- Build command: `npm ci && npm run build`
+- Start command: `npm start`
+- Add the same four environment variables.
+- Apply `supabase/schema.sql` once in Supabase SQL Editor and seed separately.
 
-2. From the project root, create an app configuration:
+### Docker
 
-```bash
-fly launch --no-deploy
-```
-
-Choose a region close to your teammates. Keep the generated app name; it becomes part of the public URL.
-
-3. Create a persistent volume in the same region:
-
-```bash
-fly volumes create aeride_data --size 1 --region <region>
-```
-
-4. In the generated `fly.toml`, ensure the relevant sections contain:
-
-```toml
-[env]
-  DATABASE_URL = "file:/data/aeride.db"
-  NEXT_PUBLIC_APP_URL = "https://<your-app>.fly.dev"
-
-[[mounts]]
-  source = "aeride_data"
-  destination = "/data"
-
-[http_service]
-  internal_port = 3000
-  force_https = true
-  auto_stop_machines = "stop"
-  auto_start_machines = true
-  min_machines_running = 1
-```
-
-5. Set the production session secret. Generate a value locally, then pass it to Fly:
-
-```bash
-fly secrets set SESSION_SECRET=<long-random-value>
-```
-
-6. Deploy:
-
-```bash
-fly deploy
-```
-
-The included [`Dockerfile`](Dockerfile) builds Next.js and starts the container with `prisma db push`, the idempotent seed, and `next start`. Open the URL printed by Fly:
-
-```bash
-fly open
-```
-
-7. Check logs if needed:
-
-```bash
-fly logs
-```
-
-Important: a Fly volume is not automatically shared or replicated between machines. Use one machine for this SQLite deployment. For multiple app instances or high concurrency, the architecture should migrate to a server database.
-
-### Alternative: Render with a persistent disk
-
-Render web services have ephemeral filesystems by default. A persistent disk is required for SQLite, and Render documents that persistent disks are available for paid web services ([Render persistent disks](https://render.com/docs/disks)).
-
-Configure a Render Web Service as follows:
-
-- Build command: `npm ci && npx prisma generate && npm run build`
-- Start command: `npx prisma db push && npm run db:seed && npm start`
-- Persistent disk mount path: `/opt/render/project/src/storage`
-- `DATABASE_URL`: `file:/opt/render/project/src/storage/aeride.db`
-- `NEXT_PUBLIC_APP_URL`: your Render service URL
-- `SESSION_SECRET`: a long random secret
-
-The included Dockerfile can also be used if you choose Render’s Docker deployment path. Because the disk is attached to one service instance, keep the service at one instance for SQLite.
-
-## Backups
-
-Back up the SQLite file before redeployments or schema changes. With the SQLite CLI:
-
-```bash
-sqlite3 prisma/dev.db ".backup 'aeride-backup.db'"
-```
-
-On Fly.io, run the equivalent command inside the machine and copy the backup to a secure storage location. Never commit database files containing real user data.
+The included [`Dockerfile`](Dockerfile) builds and starts the Next.js server. Pass the four environment variables through your host’s secret manager. The container does not run migrations automatically because Supabase schema changes should be reviewed and applied through SQL Editor or a controlled migration pipeline.
 
 ## Troubleshooting
 
-### `Environment variable not found: DATABASE_URL`
+### “Supabase is not configured”
 
-Make sure `.env` is in the project root beside `package.json`, contains `DATABASE_URL="file:./dev.db"`, and restart `npm run dev` after editing it.
+Check that `.env` is in the project root beside `package.json`, contains the Supabase URL and service-role key, and restart `npm run dev`.
 
-### `P1001` or a PostgreSQL connection error
+### Registration fails
 
-This build no longer uses PostgreSQL. Replace any old PostgreSQL URL in `.env` with:
+Confirm that `supabase/schema.sql` has been run. The `register_passenger` RPC must exist and the email/user ID must be unique.
 
-```env
-DATABASE_URL="file:./dev.db"
-```
+### Login returns 401
 
-Then run `npx prisma db push` again.
+Run `npm run db:seed`, confirm the demo credentials, and verify that the `auth_account` table contains the account.
 
-### Login returns `401`
+### SQL Lab returns an RPC error
 
-Run `npm run db:seed` and verify the demo credentials. Passwords are case-sensitive.
-
-### A trip remains `REQUESTED`
-
-The booking engine assigns only an active, verified, available seeded driver. Seed again, then retry. Once assigned, the driver changes the state from the driver’s **Trip history** page.
+Re-run the latest `supabase/schema.sql` in Supabase SQL Editor. The `run_sql_lab_query` function must exist and the service-role key must belong to the same project URL.
 
 ### Map tiles are blank
 
-The map needs network access to load OpenStreetMap tiles. Booking and fare calculation still work with the deterministic Chennai fallback if tiles are unavailable.
+OpenStreetMap tiles require network access. Booking and deterministic Chennai fare calculation still work if tiles are unavailable.
 
-## Verification before sharing
+## Verification
 
 ```bash
-npx prisma validate
 npm run typecheck
 npm run test:domain
 npm run build
 ```
 
-Before sharing publicly, change the seeded passwords, rotate `SESSION_SECRET`, attach persistent storage, enable HTTPS, and avoid using the academic payment simulation for real payments.
+Then verify manually:
+
+1. Passenger login and registration.
+2. Driver availability and trip transitions.
+3. Completed-trip payment for CARD, UPI, and CASH.
+4. Receipt download.
+5. Admin Explorer and every SQL Lab query.
+6. Supabase table constraints and `trip_event` audit rows.
 
 ## Documentation
 
-- [`DATABASE_SETUP.md`](DATABASE_SETUP.md) — SQLite setup and 12 SQL files
+- [`DATABASE_SETUP.md`](DATABASE_SETUP.md) — Supabase schema and seed steps
 - [`PROJECT_REPORT.md`](PROJECT_REPORT.md) — academic report, normalization, ER/EER diagrams, schema, and testing
 - [`VIVA_QUESTIONS.md`](VIVA_QUESTIONS.md) — presentation guide
 - [`docs/er-diagram.svg`](docs/er-diagram.svg) — Chen notation ER diagram

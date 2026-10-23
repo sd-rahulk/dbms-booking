@@ -1,4 +1,4 @@
--- SQLite access paths supporting the operational workload.
+-- PostgreSQL access paths supporting the operational workload.
 CREATE INDEX IF NOT EXISTS idx_trip_user_requested ON trip(user_id, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_trip_status_requested ON trip(status, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_assignment_driver ON assigned_to(driver_id);

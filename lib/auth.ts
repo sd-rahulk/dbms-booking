@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
-import { db } from "./db";
+import { getSupabaseAdmin } from "./supabase";
 
 const COOKIE_NAME = "aeride_session";
 const secret = () => process.env.SESSION_SECRET || "local-development-secret-change-me";
@@ -46,9 +46,16 @@ export async function requireSession(role?: Session["role"]) {
 }
 
 export async function verifyLogin(email: string, password: string) {
-  const account = await db.authAccount.findUnique({ where: { email: email.toLowerCase() } });
-  if (!account || !(await bcrypt.compare(password, account.passwordHash))) return null;
-  return account;
+  const { data: account, error } = await getSupabaseAdmin().from("auth_account").select("*").eq("email", email.toLowerCase()).maybeSingle();
+  if (error || !account || !(await bcrypt.compare(password, account.password_hash))) return null;
+  return {
+    accountId: account.account_id,
+    email: account.email,
+    passwordHash: account.password_hash,
+    role: account.role,
+    userId: account.user_id,
+    driverId: account.driver_id,
+  };
 }
 
 export async function hashPassword(password: string) { return bcrypt.hash(password, 12); }

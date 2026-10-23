@@ -2,7 +2,7 @@
 
 ## Abstract
 
-AERIDE is a database-driven ride-sharing and cab booking management system for Chennai. It combines an academically faithful relational model with application extensions needed for authentication, operational state, auditing, analytics, and idempotent payment records. The application uses Next.js and Prisma over SQLite, with role-aware portals for passengers, drivers, and administrators.
+AERIDE is a database-driven ride-sharing and cab booking management system for Chennai. It combines an academically faithful relational model with application extensions needed for authentication, operational state, auditing, analytics, and idempotent payment records. The application uses Next.js and Supabase PostgreSQL, with role-aware portals for passengers, drivers, and administrators.
 
 ## Problem statement
 
@@ -10,7 +10,7 @@ Manual cab coordination scatters passenger identity, driver availability, vehicl
 
 ## Architecture
 
-The browser renders responsive App Router pages. Client forms call server route handlers. Route handlers validate payloads with Zod, read a signed HTTP-only cookie, authorize the role, and call Prisma transactions. SQLite owns constraints, relations, indexes, views, and audit triggers. The map uses Leaflet/OpenStreetMap; the deterministic Chennai resolver keeps academic demos reproducible.
+The browser renders responsive App Router pages. Client forms call server route handlers. Route handlers validate payloads with Zod, read a signed HTTP-only cookie, authorize the role, and call Supabase PostgREST queries or PostgreSQL RPC transactions. Supabase owns constraints, relations, indexes, views, audit triggers, and row-level locking. The map uses Leaflet/OpenStreetMap; the deterministic Chennai resolver keeps academic demos reproducible.
 
 ## ER and EER diagrams
 
@@ -65,19 +65,19 @@ Given `Policy_ID → Vehicle_Type, Base_Fare` and `Vehicle_Type → Per_Km_Rate`
 
 `FARE_POLICY_BASE(Policy_ID, Vehicle_Type, Base_Fare)` and `VEHICLE_FARE_RATE(Vehicle_Type, Per_Km_Rate)`.
 
-The decomposition is lossless because the common attribute `Vehicle_Type` functionally determines all attributes of `VEHICLE_FARE_RATE`, making it a key there. It is dependency-preserving because the first dependency is represented in `FARE_POLICY_BASE` and the second in `VEHICLE_FARE_RATE`. The implementation keeps the original-compatible Prisma structure for straightforward historical policy lookup; the SQL/report layer documents the BCNF decomposition and can expose a compatibility view if physical normalization is selected later.
+The decomposition is lossless because the common attribute `Vehicle_Type` functionally determines all attributes of `VEHICLE_FARE_RATE`, making it a key there. It is dependency-preserving because the first dependency is represented in `FARE_POLICY_BASE` and the second in `VEHICLE_FARE_RATE`. The implementation keeps the original-compatible `fare_policy` structure for straightforward historical policy lookup; the SQL/report layer documents the BCNF decomposition and can expose a compatibility view if physical normalization is selected later.
 
 ## Core engine
 
-The quote formula is `Base_Fare + (Distance_Km × Per_Km_Rate)`. SQLite stores the fare as REAL, while the server calculates in paise before persisting a two-decimal value. Distance is captured at request time and the quote is persisted on `TRIP`. Assignment is transactional and uses SQLite’s serialized write model. Transition validation permits `REQUESTED → ASSIGNED → ACCEPTED → IN_PROGRESS → COMPLETED`, with cancellation from active states. Every transition creates `TRIP_EVENT`.
+The quote formula is `Base_Fare + (Distance_Km × Per_Km_Rate)`. Supabase stores currency as `NUMERIC(12,2)`, while the server calculates in paise before persisting a two-decimal value. Distance is captured at request time and the quote is persisted on `TRIP`. Assignment is transactional and uses a PostgreSQL RPC with `FOR UPDATE SKIP LOCKED` to prevent conflicting driver assignments. Transition validation permits `REQUESTED → ASSIGNED → ACCEPTED → IN_PROGRESS → COMPLETED`, with cancellation from active states. Every transition creates `TRIP_EVENT`.
 
 ## Security and accessibility
 
-Passwords are bcrypt-hashed. Sessions are signed, HTTP-only, same-site cookies. Payloads are Zod validated on the server. DB calls use Prisma or a server-side allow-list of fixed SQLite analytics statements. Sensitive payment credentials are never persisted. Interfaces include labels, focusable controls, readable contrast, responsive layouts, empty/error/loading states, and reduced-motion CSS support.
+Passwords are bcrypt-hashed. Sessions are signed, HTTP-only, same-site cookies. Payloads are Zod validated on the server. Database calls use the server-only Supabase service-role client, while SQL Lab uses a server-side allow-list backed by the fixed PostgreSQL `run_sql_lab_query` function. Sensitive payment credentials are never persisted. Interfaces include labels, focusable controls, readable contrast, responsive layouts, empty/error/loading states, and reduced-motion CSS support.
 
 ## SQL deliverables
 
-`sql/01_schema.sql` through `sql/12_indexes.sql` cover DDL, DML, joins, subqueries, aggregations, views, triggers, procedures, transactions, required analytics, and indexes. `prisma/seed.ts` adds deterministic U001–U005, D001–D005, V001–V005 records with Chennai locations.
+`sql/01_schema.sql` through `sql/12_indexes.sql` cover DDL, DML, joins, subqueries, aggregations, views, triggers, procedures, transactions, required analytics, and indexes. `supabase/seed.ts` adds deterministic U001–U005, D001–D005, V001–V005 records with Chennai locations.
 
 ## Test plan and results
 
@@ -87,9 +87,9 @@ Passwords are bcrypt-hashed. Sessions are signed, HTTP-only, same-site cookies. 
 | Fare | Paise-safe formula and persisted quote | Implemented in `lib/fare.ts` and trip transaction |
 | Concurrency | Serializable transaction + locked driver candidate | Implemented in `POST /api/trips` |
 | State machine | Invalid transitions rejected server-side | Implemented in `lib/state-machine.ts` |
-| Integrity | PK, UQ, FK, capacity/date/rating checks | Prisma schema and SQL constraints |
-| Rollback | Booking transaction throws before assignment | SQLite transaction rolls back trip/event/assignment together |
-| Build | Typecheck, Prisma validation, production build | Run with README verification commands |
+| Integrity | PK, UQ, FK, capacity/date/rating checks | Supabase PostgreSQL schema and SQL constraints |
+| Rollback | Booking transaction throws before assignment | PostgreSQL RPC rolls back trip/event/assignment together |
+| Build | Typecheck and production build | Run with README verification commands |
 
 ## Conclusion
 

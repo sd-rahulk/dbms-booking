@@ -4,6 +4,3 @@ out
 .env
 .env.local
 *.log
-prisma/generated
-prisma/dev.db
-prisma/dev.db-journal
